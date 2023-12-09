@@ -1,118 +1,110 @@
-use dojo_examples::models::{Direction};
+use starknet::ContractAddress;
 
-// define the interface
 #[starknet::interface]
-trait IActions<TContractState> {
-    fn spawn(self: @TContractState);
-    fn move(self: @TContractState, direction: Direction);
+trait IActions<ContractState> {
+    fn move(
+        self: @ContractState,
+        curr_position: (u32, u32),
+        next_position: (u32, u32),
+        caller: ContractAddress, //player
+        game_id: u32
+    );
+    fn spawn(
+        self: @ContractState, white_address: ContractAddress, black_address: ContractAddress
+    ) -> u32;
 }
 
-// dojo decorator
 #[dojo::contract]
 mod actions {
-    use starknet::{ContractAddress, get_caller_address};
-    use dojo_examples::models::{Position, Moves, Direction, Vec2};
-    use dojo_examples::utils::next_position;
-    use super::IActions;
+    use dojo_chess::models::{Color, Square, PieceType, Game, GameTurn};
+    use super::{ContractAddress, IActions};
+    use dojo_chess::utils::{is_out_of_board, is_right_piece_move, is_piece_is_mine};
 
-    // declaring custom event struct
-    #[event]
-    #[derive(Drop, starknet::Event)]
-    enum Event {
-        Moved: Moved,
-    }
-
-    // declaring custom event struct
-    #[derive(Drop, starknet::Event)]
-    struct Moved {
-        player: ContractAddress,
-        direction: Direction
-    }
-
-    // impl: implement functions specified in trait
     #[external(v0)]
-    impl ActionsImpl of IActions<ContractState> {
-        // ContractState is defined by system decorator expansion
-        fn spawn(self: @ContractState) {
-            // Access the world dispatcher for reading.
+    impl IActionsImpl of IActions<ContractState> {
+        fn spawn(
+            self: @ContractState, white_address: ContractAddress, black_address: ContractAddress
+        ) -> u32 {
             let world = self.world_dispatcher.read();
-
-            // Get the address of the current caller, possibly the player's address.
-            let player = get_caller_address();
-
-            // Retrieve the player's current position from the world.
-            let position = get!(world, player, (Position));
-
-            // Retrieve the player's move data, e.g., how many moves they have left.
-            let moves = get!(world, player, (Moves));
-
-            // Update the world state with the new data.
-            // 1. Set players moves to 10
-            // 2. Move the player's position 100 units in both the x and y direction.
+            let game_id = world.uuid();
             set!(
                 world,
                 (
-                    Moves { player, remaining: 100, last_direction: Direction::None(()) },
-                    Position { player, vec: Vec2 { x: 10, y: 10 } },
+                    Game {
+                        game_id, winner: Color::None(()), white: white_address, black: black_address
+                    },
+                    GameTurn { game_id, turn: Color::White(()) },
                 )
             );
+
+            set!(world, (Square { game_id, x: 0, y: 0, piece: PieceType::WhiteRook }));
+            set!(world, (Square { game_id, x: 0, y: 1, piece: PieceType::WhitePawn }));
+            set!(world, (Square { game_id, x: 1, y: 6, piece: PieceType::BlackPawn }));
+            set!(world, (Square { game_id, x: 1, y: 0, piece: PieceType::WhiteKnight }));
+
+            //the rest of the positions on the board goes here....
+
+            game_id
         }
-
-        // Implementation of the move function for the ContractState struct.
-        fn move(self: @ContractState, direction: Direction) {
-            // Access the world dispatcher for reading.
+        fn move(
+            self: @ContractState,
+            curr_position: (u32, u32),
+            next_position: (u32, u32),
+            caller: ContractAddress, //player
+            game_id: u32
+        ) {
             let world = self.world_dispatcher.read();
+            let (current_x, current_y) = curr_position;
+            let (next_x, next_y) = next_position;
+            let mut current_square = get!(world, (game_id, current_x, current_y), (Square));
 
-            // Get the address of the current caller, possibly the player's address.
-            let player = get_caller_address();
+            // check if next_position is out of board or not
+            assert(is_out_of_board(next_position), 'Should be inside board');
 
-            // Retrieve the player's current position and moves data from the world.
-            let (mut position, mut moves) = get!(world, player, (Position, Moves));
+            // check if this is the right piece type move
+            assert(
+                is_right_piece_move(current_square.piece, curr_position, next_position),
+                'Should be right piece move'
+            );
+            let target_piece = current_square.piece;
+            // make current_square piece none and move piece to next_square
+            current_square.piece = PieceType::None(());
+            let mut next_square = get!(world, (game_id, next_x, next_y), (Square));
 
-            // Deduct one from the player's remaining moves.
-            moves.remaining -= 1;
+            // check the piece already in next_suqare
+            let maybe_next_square_piece = next_square.piece;
 
-            // Update the last direction the player moved in.
-            moves.last_direction = direction;
+            if maybe_next_square_piece == PieceType::None(()) {
+                next_square.piece = target_piece;
+            } else {
+                if is_piece_is_mine(maybe_next_square_piece) {
+                    panic(array!['Already same color piece exist'])
+                } else {
+                    next_square.piece = target_piece;
+                }
+            }
 
-            // Calculate the player's next position based on the provided direction.
-            let next = next_position(position, direction);
-
-            // Update the world state with the new moves data and position.
-            set!(world, (moves, next));
-
-            // Emit an event to the world to notify about the player's move.
-            emit!(world, Moved { player, direction });
+            set!(world, (next_square));
+            set!(world, (current_square));
         }
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use starknet::class_hash::Felt252TryIntoClassHash;
-
-    // import world dispatcher
-    use dojo::world::{IWorldDispatcher, IWorldDispatcherTrait};
-
-    // import test utils
+    use starknet::ContractAddress;
     use dojo::test_utils::{spawn_test_world, deploy_contract};
+    use dojo::world::{IWorldDispatcher, IWorldDispatcherTrait};
+    use dojo_chess::models::{Game, game, GameTurn, game_turn, Square, square, PieceType};
+    use dojo_chess::actions::actions;
+    use dojo_chess::actions::{IActionsDispatcher, IActionsDispatcherTrait};
 
-    // import models
-    use dojo_examples::models::{position, moves};
-    use dojo_examples::models::{Position, Moves, Direction, Vec2};
-
-    // import actions
-    use super::{actions, IActionsDispatcher, IActionsDispatcherTrait};
-
-    #[test]
-    #[available_gas(30000000)]
-    fn test_move() {
-        // caller
-        let caller = starknet::contract_address_const::<0x0>();
-
+    // helper setup function
+    fn setup_world() -> (IWorldDispatcher, IActionsDispatcher) {
         // models
-        let mut models = array![position::TEST_CLASS_HASH, moves::TEST_CLASS_HASH];
-
+        let mut models = array![
+            game::TEST_CLASS_HASH, game_turn::TEST_CLASS_HASH, square::TEST_CLASS_HASH
+        ];
         // deploy world with models
         let world = spawn_test_world(models);
 
@@ -121,31 +113,51 @@ mod tests {
             .deploy_contract('salt', actions::TEST_CLASS_HASH.try_into().unwrap());
         let actions_system = IActionsDispatcher { contract_address };
 
-        // call spawn()
-        actions_system.spawn();
+        (world, actions_system)
+    }
 
-        // call move with direction right
-        actions_system.move(Direction::Right(()));
+    #[test]
+    #[available_gas(3000000000000000)]
+    fn test_initiate() {
+        let white = starknet::contract_address_const::<0x01>();
+        let black = starknet::contract_address_const::<0x02>();
 
-        // Check world state
-        let moves = get!(world, caller, Moves);
+        let (world, actions_system) = setup_world();
 
-        // casting right direction
-        let right_dir_felt: felt252 = Direction::Right(()).into();
+        //system calls
+        let game_id = actions_system.spawn(white, black);
 
-        // check moves
-        assert(moves.remaining == 99, 'moves is wrong');
+        //get game
+        let game = get!(world, game_id, (Game));
+        assert(game.white == white, 'white address is incorrect');
+        assert(game.black == black, 'black address is incorrect');
 
-        // check last direction
-        assert(moves.last_direction.into() == right_dir_felt, 'last direction is wrong');
+        //get a1 square
+        let a1 = get!(world, (game_id, 0, 0), (Square));
+        assert(a1.piece == PieceType::WhiteRook, 'should be White Rook');
+        assert(a1.piece != PieceType::None, 'should have piece');
+    }
 
-        // get new_position
-        let new_position = get!(world, caller, Position);
 
-        // check new position x
-        assert(new_position.vec.x == 11, 'position x is wrong');
+    #[test]
+    #[available_gas(3000000000000000)]
+    fn test_move() {
+        let white = starknet::contract_address_const::<0x01>();
+        let black = starknet::contract_address_const::<0x02>();
 
-        // check new position y
-        assert(new_position.vec.y == 10, 'position y is wrong');
+        let (world, actions_system) = setup_world();
+        actions_system.spawn(white, black);
+
+        let game_id = world.uuid();
+
+        let a2 = get!(world, (game_id, 0, 1), (Square));
+        assert(a2.piece == PieceType::WhitePawn, 'should be White Pawn');
+        assert(a2.piece != PieceType::None, 'should have piece');
+
+        actions_system.move((0, 1), (0, 2), white.into(), game_id);
+
+        let c3 = get!(world, (game_id, 0, 2), (Square));
+        assert(c3.piece == PieceType::WhitePawn, 'should be White Pawn');
+        assert(c3.piece != PieceType::None, 'should have piece');
     }
 }

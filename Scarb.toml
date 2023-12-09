@@ -1,6 +1,6 @@
 [package]
 cairo-version = "2.3.0"
-name = "dojo_examples"
+name = "dojo_chess"
 version = "0.3.15"
 
 [cairo]
