@@ -1,14 +1,14 @@
 use starknet::ContractAddress;
 
 #[derive(Model, Drop, Serde)]
-struct Square {
+struct Piece {
     #[key]
     game_id: u32,
     #[key]
     x: u32,
     #[key]
     y: u32,
-    piece: PieceType,
+    piece_type: PieceType,
 }
 
 #[derive(Serde, Drop, Copy, PartialEq, Introspect)]
