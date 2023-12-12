@@ -3,28 +3,26 @@ use starknet::ContractAddress;
 #[derive(Model, Drop, Serde)]
 struct Piece {
     #[key]
-    game_id: u32,
+    color: Color,
     #[key]
-    x: u32,
-    #[key]
-    y: u32,
+    position: Vec2,
     piece_type: PieceType,
+}
+
+#[derive(Copy, Drop, Serde, Introspect)]
+struct Vec2 {
+    x: u32,
+    y: u32
 }
 
 #[derive(Serde, Drop, Copy, PartialEq, Introspect)]
 enum PieceType {
-    WhitePawn: (),
-    WhiteKnight: (),
-    WhiteBishop: (),
-    WhiteRook: (),
-    WhiteQueen: (),
-    WhiteKing: (),
-    BlackPawn: (),
-    BlackKnight: (),
-    BlackBishop: (),
-    BlackRook: (),
-    BlackQueen: (),
-    BlackKing: (),
+    Pawn: (),
+    Knight: (),
+    Bishop: (),
+    Rook: (),
+    Queen: (),
+    King: (),
     None: (),
 }
 
@@ -45,8 +43,17 @@ struct Game {
 }
 
 #[derive(Model, Drop, Serde)]
+struct Player {
+    #[key]
+    game_id: u32,
+    #[key]
+    address: ContractAddress,
+    color: Color
+}
+
+#[derive(Model, Drop, Serde)]
 struct GameTurn {
     #[key]
     game_id: u32,
-    turn: Color
+    player_color: Color
 }

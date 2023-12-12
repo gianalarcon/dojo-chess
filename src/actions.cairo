@@ -1,11 +1,11 @@
 use starknet::ContractAddress;
-
+use chess::models::Vec2;
 #[starknet::interface]
 trait IActions<ContractState> {
     fn move(
         self: @ContractState,
-        curr_position: (u32, u32),
-        next_position: (u32, u32),
+        curr_position: Vec2,
+        next_position: Vec2,
         caller: ContractAddress, //player
         game_id: u32
     );
@@ -16,9 +16,9 @@ trait IActions<ContractState> {
 
 #[dojo::contract]
 mod actions {
-    use chess::models::{Color, Piece, PieceType, Game, GameTurn};
-    use super::{ContractAddress, IActions};
-    use chess::utils::PieceTrait;
+    use chess::models::{Player, Color, Piece, PieceType, Game, GameTurn};
+    use super::{ContractAddress, IActions, Vec2};
+    use chess::utils::{PieceTrait, GameTurnTrait};
 
     #[external(v0)]
     impl IActionsImpl of IActions<ContractState> {
@@ -27,19 +27,60 @@ mod actions {
         ) -> u32 {
             let world = self.world_dispatcher.read();
             let game_id = world.uuid();
+
+            // set Players
+            set!(
+                world,
+                (
+                    Player { game_id, address: black_address, color: Color::Black(()) },
+                    Player { game_id, address: white_address, color: Color::White(()) },
+                )
+            );
+
+            // set Game and GameTurn    
             set!(
                 world,
                 (
                     Game {
                         game_id, winner: Color::None(()), white: white_address, black: black_address
                     },
-                    GameTurn { game_id, turn: Color::White(()) },
+                    GameTurn { game_id, player_color: Color::White(()) },
                 )
             );
-            set!(world, (Piece { game_id, x: 0, y: 0, piece_type: PieceType::WhiteRook }));
-            set!(world, (Piece { game_id, x: 0, y: 1, piece_type: PieceType::WhitePawn }));
-            set!(world, (Piece { game_id, x: 1, y: 6, piece_type: PieceType::BlackPawn }));
-            set!(world, (Piece { game_id, x: 1, y: 0, piece_type: PieceType::WhiteKnight }));
+
+            // set Pieces
+            set!(
+                world,
+                (Piece {
+                    color: Color::White(()),
+                    position: Vec2 { x: 0, y: 0 },
+                    piece_type: PieceType::Rook
+                })
+            );
+            set!(
+                world,
+                (Piece {
+                    color: Color::White(()),
+                    position: Vec2 { x: 0, y: 1 },
+                    piece_type: PieceType::Pawn
+                })
+            );
+            set!(
+                world,
+                (Piece {
+                    color: Color::Black(()),
+                    position: Vec2 { x: 1, y: 6 },
+                    piece_type: PieceType::Pawn
+                })
+            );
+            set!(
+                world,
+                (Piece {
+                    color: Color::White(()),
+                    position: Vec2 { x: 1, y: 0 },
+                    piece_type: PieceType::Knight
+                })
+            );
 
             //the rest of the positions on the board goes here....
 
@@ -47,16 +88,15 @@ mod actions {
         }
         fn move(
             self: @ContractState,
-            curr_position: (u32, u32),
-            next_position: (u32, u32),
+            curr_position: Vec2,
+            next_position: Vec2,
             caller: ContractAddress, //player
             game_id: u32
         ) {
             let world = self.world_dispatcher.read();
-            let (current_x, current_y) = curr_position;
-            let (next_x, next_y) = next_position;
-            let mut current_piece = get!(world, (game_id, current_x, current_y), (Piece));
-
+            let mut current_piece = get!(
+                world, (game_id, curr_position.x, curr_position.y), (Piece)
+            );
             // check if next_position is out of board or not
             assert(PieceTrait::is_out_of_board(next_position), 'Should be inside board');
 
@@ -68,7 +108,7 @@ mod actions {
             let target_piece = current_piece.piece_type;
             // make current_piece piece none and move piece to next_position
             current_piece.piece_type = PieceType::None(());
-            let mut piece_next_position = get!(world, (game_id, next_x, next_y), (Piece));
+            let mut piece_next_position = get!(world, (game_id, next_position), (Piece));
 
             // check the piece already in next_position
             assert(
@@ -79,6 +119,11 @@ mod actions {
             piece_next_position.piece_type = target_piece;
             set!(world, (piece_next_position));
             set!(world, (current_piece));
+
+            // change turn
+            let mut game_turn = get!(world, game_id, (GameTurn));
+            game_turn.player_color = game_turn.next_turn();
+            set!(world, (game_turn));
         }
     }
 }
@@ -88,7 +133,9 @@ mod tests {
     use starknet::ContractAddress;
     use dojo::test_utils::{spawn_test_world, deploy_contract};
     use dojo::world::{IWorldDispatcher, IWorldDispatcherTrait};
-    use chess::models::{Game, game, GameTurn, game_turn, Piece, piece, PieceType};
+    use chess::models::{
+        Game, game, Player, player, GameTurn, game_turn, Piece, piece, PieceType, Color, Vec2
+    };
     use chess::actions::actions;
     use chess::actions::{IActionsDispatcher, IActionsDispatcherTrait};
 
@@ -96,7 +143,10 @@ mod tests {
     fn setup_world() -> (IWorldDispatcher, IActionsDispatcher) {
         // models
         let mut models = array![
-            game::TEST_CLASS_HASH, game_turn::TEST_CLASS_HASH, piece::TEST_CLASS_HASH
+            game::TEST_CLASS_HASH,
+            player::TEST_CLASS_HASH,
+            game_turn::TEST_CLASS_HASH,
+            piece::TEST_CLASS_HASH
         ];
         // deploy world with models
         let world = spawn_test_world(models);
@@ -108,13 +158,11 @@ mod tests {
 
         (world, actions_system)
     }
-
     #[test]
     #[available_gas(3000000000000000)]
     fn test_initiate() {
         let white = starknet::contract_address_const::<0x01>();
         let black = starknet::contract_address_const::<0x02>();
-
         let (world, actions_system) = setup_world();
 
         //system calls
@@ -122,16 +170,18 @@ mod tests {
 
         //get game
         let game = get!(world, game_id, (Game));
+        let game_turn = get!(world, game_id, (GameTurn));
+        assert(game_turn.player_color == Color::White(()), 'should be white turn');
         assert(game.white == white, 'white address is incorrect');
         assert(game.black == black, 'black address is incorrect');
 
         //get a1 piece
-        let a1 = get!(world, (game_id, 0, 0), (Piece));
-        assert(a1.piece_type == PieceType::WhiteRook, 'should be White Rook');
+        let curr_pos = Vec2 { x: 0, y: 0 };
+        let a1 = get!(world, (game_id, curr_pos), (Piece));
+        assert(a1.piece_type == PieceType::Rook, 'should be Rook');
+        assert(a1.color == Color::White(()), 'should be white color');
         assert(a1.piece_type != PieceType::None, 'should have piece');
     }
-
-
     #[test]
     #[available_gas(3000000000000000)]
     fn test_move() {
@@ -139,17 +189,24 @@ mod tests {
         let black = starknet::contract_address_const::<0x02>();
 
         let (world, actions_system) = setup_world();
-        actions_system.spawn(white, black);
-
-        let game_id = world.uuid();
-        let a2 = get!(world, (game_id, 0, 1), (Piece));
-        assert(a2.piece_type == PieceType::WhitePawn, 'should be White Pawn');
+        let game_id = actions_system.spawn(white, black);
+        let curr_pos = Vec2 { x: 0, y: 1 };
+        let a2 = get!(world, (game_id, curr_pos), (Piece));
+        assert(a2.piece_type == PieceType::Pawn, 'should be White Pawn');
+        assert(a2.color == Color::White(()), 'should be white color piece');
         assert(a2.piece_type != PieceType::None, 'should have piece');
 
-        actions_system.move((0, 1), (0, 2), white.into(), game_id);
+        let next_pos = Vec2 { x: 0, y: 2 };
+        let game_turn = get!(world, game_id, (GameTurn));
+        assert(game_turn.player_color == Color::White(()), 'should be white player turn');
+        actions_system.move(curr_pos, next_pos, white.into(), game_id);
 
         let c3 = get!(world, (game_id, 0, 2), (Piece));
-        assert(c3.piece_type == PieceType::WhitePawn, 'should be White Pawn');
+        assert(c3.piece_type == PieceType::Pawn, 'should be White Pawn');
+        assert(c3.color == Color::White(()), 'should be white color piece');
         assert(c3.piece_type != PieceType::None, 'should have piece');
+
+        let game_turn = get!(world, game_id, (GameTurn));
+        assert(game_turn.player_color == Color::Black(()), 'should be black player turn');
     }
 }

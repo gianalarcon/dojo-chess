@@ -16,12 +16,12 @@ mod tests {
         //system calls
         let game_id = actions_system.spawn(white, black);
 
-        //White pawn is now in (0,1)
+        //White pawn is setup in (0,1)
         let a2 = get!(world, (game_id, 0, 1), (Piece));
         assert(a2.piece_type == PieceType::WhitePawn, 'should be White Pawn in (0,1)');
         assert(a2.piece_type != PieceType::None, 'should have piece in (0,1)');
 
-        //Black pawn is now in (1,6)
+        //Black pawn is setup in (1,6)
         let b7 = get!(world, (game_id, 1, 6), (Piece));
         assert(b7.piece_type == PieceType::BlackPawn, 'should be Black Pawn in (1,6)');
         assert(b7.piece_type != PieceType::None, 'should have piece in (1,6)');
@@ -35,7 +35,7 @@ mod tests {
         assert(a4.piece_type != PieceType::None, 'should have piece in (0,3)');
 
         //Move black Pawn to (1,4)
-        actions_system.move((1, 6), (1, 4), white.into(), game_id);
+        actions_system.move((1, 6), (1, 4), black.into(), game_id);
 
         //Black pawn is now in (1,4)
         let b5 = get!(world, (game_id, 1, 4), (Piece));

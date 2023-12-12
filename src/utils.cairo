@@ -1,12 +1,10 @@
-use chess::models::{PieceType, Piece};
+use chess::models::{PieceType, Piece, Vec2, GameTurn, Color};
 use starknet::ContractAddress;
 
 trait PieceTrait {
     fn is_mine(self: @Piece) -> bool;
-    fn is_out_of_board(next_position: (u32, u32)) -> bool;
-    fn is_right_piece_move(
-        self: @Piece, curr_position: (u32, u32), next_position: (u32, u32)
-    ) -> bool;
+    fn is_out_of_board(next_position: Vec2) -> bool;
+    fn is_right_piece_move(self: @Piece, curr_position: Vec2, next_position: Vec2) -> bool;
 }
 
 impl PieceImpl of PieceTrait {
@@ -14,38 +12,48 @@ impl PieceImpl of PieceTrait {
         false
     }
 
-    fn is_out_of_board(next_position: (u32, u32)) -> bool {
-        let (n_x, n_y) = next_position;
-        if n_x > 7 || n_y > 7 {
+    fn is_out_of_board(next_position: Vec2) -> bool {
+        if next_position.x > 7 || next_position.y > 7 {
             return false;
         }
         true
     }
 
-    fn is_right_piece_move(
-        self: @Piece, curr_position: (u32, u32), next_position: (u32, u32)
-    ) -> bool {
-        let (c_x, c_y) = curr_position;
-        let (n_x, n_y) = next_position;
+    fn is_right_piece_move(self: @Piece, curr_position: Vec2, next_position: Vec2) -> bool {
+        let c_x = curr_position.x;
+        let c_y = curr_position.y;
+        let n_x = next_position.x;
+        let n_y = next_position.y;
         match self.piece_type {
-            PieceType::WhitePawn => { true },
-            PieceType::WhiteKnight => {
+            PieceType::Pawn => { true },
+            PieceType::Knight => {
                 if n_x == c_x + 2 && n_y == c_x + 1 {
                     return true;
                 }
                 panic(array!['Knight illegal move'])
             },
-            PieceType::WhiteBishop => { true },
-            PieceType::WhiteRook => { true },
-            PieceType::WhiteQueen => { true },
-            PieceType::WhiteKing => { true },
-            PieceType::BlackPawn => { true },
-            PieceType::BlackKnight => { true },
-            PieceType::BlackBishop => { true },
-            PieceType::BlackRook => { true },
-            PieceType::BlackQueen => { true },
-            PieceType::BlackKing => { true },
+            PieceType::Bishop => { true },
+            PieceType::Rook => { true },
+            PieceType::Queen => { true },
+            PieceType::King => { true },
             PieceType::None(_) => panic(array!['Should not move empty piece']),
+        }
+    }
+}
+
+trait GameTurnTrait {
+    //fn is_correct_turn(self: @GameTurn) -> bool;
+    fn next_turn(self: @GameTurn) -> Color;
+}
+impl GameTurnImpl of GameTurnTrait {
+    // fn is_correct_turn(self: @GameTurn) -> bool {
+
+    // }
+    fn next_turn(self: @GameTurn) -> Color {
+        match self.player_color {
+            Color::White(()) => Color::Black(()),
+            Color::Black(()) => Color::White(()),
+            Color::None(()) => panic(array!['Illegal turn']),
         }
     }
 }
