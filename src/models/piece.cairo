@@ -1,5 +1,31 @@
-use chess::models::{PieceType, Piece, Vec2, GameTurn, Color};
+use chess::models::player::Color;
 use starknet::ContractAddress;
+
+#[derive(Model, Drop, Serde)]
+struct Piece {
+    #[key]
+    color: Color,
+    #[key]
+    position: Vec2,
+    piece_type: PieceType,
+}
+
+#[derive(Copy, Drop, Serde, Introspect)]
+struct Vec2 {
+    x: u32,
+    y: u32
+}
+
+#[derive(Serde, Drop, Copy, PartialEq, Introspect)]
+enum PieceType {
+    Pawn: (),
+    Knight: (),
+    Bishop: (),
+    Rook: (),
+    Queen: (),
+    King: (),
+    None: (),
+}
 
 trait PieceTrait {
     fn is_mine(self: @Piece) -> bool;
@@ -37,23 +63,6 @@ impl PieceImpl of PieceTrait {
             PieceType::Queen => { true },
             PieceType::King => { true },
             PieceType::None(_) => panic(array!['Should not move empty piece']),
-        }
-    }
-}
-
-trait GameTurnTrait {
-    //fn is_correct_turn(self: @GameTurn) -> bool;
-    fn next_turn(self: @GameTurn) -> Color;
-}
-impl GameTurnImpl of GameTurnTrait {
-    // fn is_correct_turn(self: @GameTurn) -> bool {
-
-    // }
-    fn next_turn(self: @GameTurn) -> Color {
-        match self.player_color {
-            Color::White(()) => Color::Black(()),
-            Color::Black(()) => Color::White(()),
-            Color::None(()) => panic(array!['Illegal turn']),
         }
     }
 }

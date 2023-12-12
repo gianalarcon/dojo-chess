@@ -1,5 +1,5 @@
 use starknet::ContractAddress;
-use chess::models::Vec2;
+use chess::models::piece::Vec2;
 #[starknet::interface]
 trait IActions<ContractState> {
     fn move(
@@ -16,9 +16,10 @@ trait IActions<ContractState> {
 
 #[dojo::contract]
 mod actions {
-    use chess::models::{Player, Color, Piece, PieceType, Game, GameTurn};
+    use chess::models::player::{Player, Color};
+    use chess::models::piece::{Piece, PieceType, PieceTrait};
+    use chess::models::game::{Game, GameTurn, GameTurnTrait};
     use super::{ContractAddress, IActions, Vec2};
-    use chess::utils::{PieceTrait, GameTurnTrait};
 
     #[external(v0)]
     impl IActionsImpl of IActions<ContractState> {
@@ -133,11 +134,10 @@ mod tests {
     use starknet::ContractAddress;
     use dojo::test_utils::{spawn_test_world, deploy_contract};
     use dojo::world::{IWorldDispatcher, IWorldDispatcherTrait};
-    use chess::models::{
-        Game, game, Player, player, GameTurn, game_turn, Piece, piece, PieceType, Color, Vec2
-    };
-    use chess::actions::actions;
-    use chess::actions::{IActionsDispatcher, IActionsDispatcherTrait};
+    use chess::models::player::{Player, Color, player};
+    use chess::models::piece::{Piece, PieceType, Vec2, piece};
+    use chess::models::game::{Game, GameTurn, game, game_turn};
+    use chess::actions::{actions, IActionsDispatcher, IActionsDispatcherTrait};
 
     // helper setup function
     fn setup_world() -> (IWorldDispatcher, IActionsDispatcher) {
