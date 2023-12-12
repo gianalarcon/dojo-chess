@@ -35,7 +35,8 @@ trait PieceTrait {
 
 impl PieceImpl of PieceTrait {
     fn is_mine(self: @Piece, player_color: @Color) -> bool {
-        self.color == player_color
+        //self.color == player_color
+        false
     }
 
     fn is_out_of_board(next_position: Vec2) -> bool {
