@@ -112,9 +112,10 @@ mod actions {
             let mut piece_next_position = get!(world, (game_id, next_position), (Piece));
 
             // check the piece already in next_position
+            let player = get!(world, (game_id, caller), (Player));
             assert(
                 piece_next_position.piece_type == PieceType::None(())
-                    || !piece_next_position.is_mine(),
+                    || !piece_next_position.is_mine(@player.color),
                 'Already same color piece exist'
             );
             piece_next_position.piece_type = target_piece;

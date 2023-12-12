@@ -28,14 +28,14 @@ enum PieceType {
 }
 
 trait PieceTrait {
-    fn is_mine(self: @Piece) -> bool;
+    fn is_mine(self: @Piece, player_color: @Color) -> bool;
     fn is_out_of_board(next_position: Vec2) -> bool;
     fn is_right_piece_move(self: @Piece, curr_position: Vec2, next_position: Vec2) -> bool;
 }
 
 impl PieceImpl of PieceTrait {
-    fn is_mine(self: @Piece) -> bool {
-        false
+    fn is_mine(self: @Piece, player_color: @Color) -> bool {
+        self.color == player_color
     }
 
     fn is_out_of_board(next_position: Vec2) -> bool {
