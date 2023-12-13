@@ -17,11 +17,11 @@ struct Player {
 }
 
 trait PlayerTrait {
-    fn is_not_my_piece(self: @Player, piece_color: @Color) -> bool;
+    fn is_not_my_piece(self: @Player, piece_color: Color) -> bool;
 }
 
 impl PalyerImpl of PlayerTrait {
-    fn is_not_my_piece(self: @Player, piece_color: @Color) -> bool {
-        self.color != piece_color
+    fn is_not_my_piece(self: @Player, piece_color: Color) -> bool {
+        *self.color != piece_color
     }
 }

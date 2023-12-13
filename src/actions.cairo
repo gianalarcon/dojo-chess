@@ -114,8 +114,7 @@ mod actions {
 
             // check if this is the right move for this piece type
             assert(
-                current_piece.is_right_piece_move(curr_position, next_position),
-                'Illegal move for type of piece'
+                current_piece.is_right_piece_move(next_position), 'Illegal move for type of piece'
             );
             // Get piece data from to next_position in the board
             let mut piece_next_position = get!(world, (game_id, next_position), (Piece));
@@ -124,7 +123,7 @@ mod actions {
             // check if there is already a piece in next_position
             assert(
                 piece_next_position.piece_type == PieceType::None
-                    || player.is_not_my_piece(@piece_next_position.color),
+                    || player.is_not_my_piece(piece_next_position.color),
                 'Already same color piece exist'
             );
 

@@ -17,6 +17,69 @@ struct Vec2 {
     y: u32
 }
 
+trait PieceTrait {
+    fn is_out_of_board(next_position: Vec2) -> bool;
+    fn is_right_piece_move(self: @Piece, next_position: Vec2) -> bool;
+}
+
+impl PieceImpl of PieceTrait {
+    fn is_out_of_board(next_position: Vec2) -> bool {
+        next_position.x > 7 || next_position.y > 7
+    }
+
+    fn is_right_piece_move(self: @Piece, next_position: Vec2) -> bool {
+        let n_x = next_position.x;
+        let n_y = next_position.y;
+        assert(!(n_x == *self.position.x && n_y == *self.position.y), 'Cannot move same position');
+        match self.piece_type {
+            PieceType::Pawn => {
+                match self.color {
+                    Color::White => {
+                        (n_x == *self.position.x && n_y == *self.position.y + 1)
+                            || (n_x == *self.position.x && n_y == *self.position.y + 2)
+                            || (n_x == *self.position.x + 1 && n_y == *self.position.y + 1)
+                            || (n_x == *self.position.x - 1 && n_y == *self.position.y + 1)
+                    },
+                    Color::Black => {
+                        (n_x == *self.position.x && n_y == *self.position.y - 1)
+                            || (n_x == *self.position.x && n_y == *self.position.y - 2)
+                            || (n_x == *self.position.x + 1 && n_y == *self.position.y - 1)
+                            || (n_x == *self.position.x - 1 && n_y == *self.position.y - 1)
+                    },
+                    Color::None => panic(array!['Should not move empty piece']),
+                }
+            },
+            PieceType::Knight => { n_x == *self.position.x + 2 && n_y == *self.position.y + 1 },
+            PieceType::Bishop => {
+                (n_x <= *self.position.x && n_y <= *self.position.y && *self.position.y
+                    - n_y == *self.position.x
+                    - n_x)
+                    || (n_x <= *self.position.x && n_y >= *self.position.y && *self.position.y
+                        - n_y == *self.position.x
+                        - n_x)
+                    || (n_x >= *self.position.x && n_y <= *self.position.y && *self.position.y
+                        - n_y == *self.position.x
+                        - n_x)
+                    || (n_x >= *self.position.x && n_y >= *self.position.y && *self.position.y
+                        - n_y == *self.position.x
+                        - n_x)
+            },
+            PieceType::Rook => {
+                (n_x == *self.position.x || n_y != *self.position.y)
+                    || (n_x != *self.position.x || n_y == *self.position.y)
+            },
+            PieceType::Queen => { true },
+            PieceType::King => {
+                (n_x <= *self.position.x + 1 && n_y <= *self.position.y + 1)
+                    || (n_x <= *self.position.x + 1 && n_y <= *self.position.y - 1)
+                    || (n_x <= *self.position.x - 1 && n_y <= *self.position.y + 1)
+                    || (n_x <= *self.position.x - 1 && n_y <= *self.position.y - 1)
+            },
+            PieceType::None => panic(array!['Should not move empty piece']),
+        }
+    }
+}
+
 #[derive(Serde, Drop, Copy, PartialEq, Introspect)]
 enum PieceType {
     Pawn,
@@ -28,34 +91,3 @@ enum PieceType {
     None,
 }
 
-trait PieceTrait {
-    fn is_out_of_board(next_position: Vec2) -> bool;
-    fn is_right_piece_move(self: @Piece, curr_position: Vec2, next_position: Vec2) -> bool;
-}
-
-impl PieceImpl of PieceTrait {
-    fn is_out_of_board(next_position: Vec2) -> bool {
-        next_position.x > 7 || next_position.y > 7
-    }
-
-    fn is_right_piece_move(self: @Piece, curr_position: Vec2, next_position: Vec2) -> bool {
-        let c_x = curr_position.x;
-        let c_y = curr_position.y;
-        let n_x = next_position.x;
-        let n_y = next_position.y;
-        match self.piece_type {
-            PieceType::Pawn => { true },
-            PieceType::Knight => {
-                if n_x == c_x + 2 && n_y == c_x + 1 {
-                    return true;
-                }
-                panic(array!['Knight illegal move'])
-            },
-            PieceType::Bishop => { true },
-            PieceType::Rook => { true },
-            PieceType::Queen => { true },
-            PieceType::King => { true },
-            PieceType::None => panic(array!['Should not move empty piece']),
-        }
-    }
-}
