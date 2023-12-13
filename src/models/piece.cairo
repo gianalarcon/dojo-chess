@@ -68,7 +68,11 @@ impl PieceImpl of PieceTrait {
                 (n_x == *self.position.x || n_y != *self.position.y)
                     || (n_x != *self.position.x || n_y == *self.position.y)
             },
-            PieceType::Queen => { true },
+            PieceType::Queen => {
+                (n_x == *self.position.x || n_y != *self.position.y)
+                    || (n_x != *self.position.x || n_y == *self.position.y)
+                    || (n_x != *self.position.x || n_y != *self.position.y)
+            },
             PieceType::King => {
                 (n_x <= *self.position.x + 1 && n_y <= *self.position.y + 1)
                     || (n_x <= *self.position.x + 1 && n_y <= *self.position.y - 1)

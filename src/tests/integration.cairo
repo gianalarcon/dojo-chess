@@ -1,9 +1,10 @@
 #[cfg(test)]
 mod tests {
-    use chess::models::{Piece, PieceType};
+    use chess::models::piece::{Piece, PieceType, Vec2};
     use dojo::world::IWorldDispatcherTrait;
-    use chess::actions::tests::setup_world;
+    use chess::tests::units::tests::setup_world;
     use chess::actions::{IActionsDispatcher, IActionsDispatcherTrait};
+    use chess::models::player::{Color};
 
     #[test]
     #[available_gas(3000000000000000)]
@@ -17,37 +18,48 @@ mod tests {
         let game_id = actions_system.spawn(white, black);
 
         //White pawn is setup in (0,1)
-        let a2 = get!(world, (game_id, 0, 1), (Piece));
-        assert(a2.piece_type == PieceType::WhitePawn, 'should be White Pawn in (0,1)');
+        let wp_curr_pos = Vec2 { x: 0, y: 1 };
+        let a2 = get!(world, (game_id, wp_curr_pos), (Piece));
+        assert(a2.piece_type == PieceType::Pawn, 'should be White Pawn in (0,1)');
+        assert(a2.color == Color::White, 'should be white color');
         assert(a2.piece_type != PieceType::None, 'should have piece in (0,1)');
 
         //Black pawn is setup in (1,6)
-        let b7 = get!(world, (game_id, 1, 6), (Piece));
-        assert(b7.piece_type == PieceType::BlackPawn, 'should be Black Pawn in (1,6)');
+        let bp_curr_pos = Vec2 { x: 1, y: 6 };
+        let b7 = get!(world, (game_id, bp_curr_pos), (Piece));
+        assert(b7.piece_type == PieceType::Pawn, 'should be Black Pawn in (1,6)');
+        assert(b7.color == Color::Black, 'should be black color');
         assert(b7.piece_type != PieceType::None, 'should have piece in (1,6)');
 
         //Move White Pawn to (0,3)
-        actions_system.move((0, 1), (0, 3), white.into(), game_id);
+        let wp_next_pos = Vec2 { x: 0, y: 3 };
+        actions_system.move(wp_curr_pos, wp_next_pos, white.into(), game_id);
 
         //White pawn is now in (0,3)
-        let a4 = get!(world, (game_id, 0, 3), (Piece));
-        assert(a4.piece_type == PieceType::WhitePawn, 'should be White Pawn in (0,3)');
+        let wp_curr_pos = wp_next_pos;
+        let a4 = get!(world, (game_id, wp_curr_pos), (Piece));
+        assert(a4.piece_type == PieceType::Pawn, 'should be White Pawn in (0,3)');
+        assert(a4.color == Color::White, 'should be white color');
         assert(a4.piece_type != PieceType::None, 'should have piece in (0,3)');
 
         //Move black Pawn to (1,4)
-        actions_system.move((1, 6), (1, 4), black.into(), game_id);
+        let bp_next_pos = Vec2 { x: 1, y: 4 };
+        actions_system.move(bp_curr_pos, bp_next_pos, black.into(), game_id);
 
         //Black pawn is now in (1,4)
-        let b5 = get!(world, (game_id, 1, 4), (Piece));
-        assert(b5.piece_type == PieceType::BlackPawn, 'should be Black Pawn in (1,4)');
+        let bp_curr_pos = bp_next_pos;
+        let b5 = get!(world, (game_id, bp_curr_pos), (Piece));
+        assert(b5.piece_type == PieceType::Pawn, 'should be Black Pawn in (1,4)');
+        assert(b5.color == Color::Black, 'should be black color');
         assert(b5.piece_type != PieceType::None, 'should have piece in (1,4)');
 
-        // Move White Pawn to (1,4)
-        // Capture black pawn
-        actions_system.move((0, 3), (1, 4), white.into(), game_id);
+        // Move White Pawn to (1,4) and capture black pawn
+        actions_system.move(wp_curr_pos, bp_curr_pos, white.into(), game_id);
 
-        let b5 = get!(world, (game_id, 1, 4), (Piece));
-        assert(b5.piece_type == PieceType::WhitePawn, 'should be White Pawn in (1,4)');
+        let wp_curr_pos = bp_curr_pos;
+        let b5 = get!(world, (game_id, wp_curr_pos), (Piece));
+        assert(b5.piece_type == PieceType::Pawn, 'should be White Pawn in (1,4)');
+        assert(b5.color == Color::White, 'should be white color');
         assert(b5.piece_type != PieceType::None, 'should have piece in (1,4)');
     }
 }

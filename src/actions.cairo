@@ -96,6 +96,25 @@ mod actions {
                 })
             );
 
+            set!(
+                world,
+                (Piece {
+                    game_id,
+                    color: Color::None,
+                    position: Vec2 { x: 0, y: 3 },
+                    piece_type: PieceType::None
+                })
+            );
+            set!(
+                world,
+                (Piece {
+                    game_id,
+                    color: Color::None,
+                    position: Vec2 { x: 1, y: 4 },
+                    piece_type: PieceType::None
+                })
+            );
+
             //the rest of the positions on the board goes here....
 
             game_id
@@ -117,22 +136,22 @@ mod actions {
                 current_piece.is_right_piece_move(next_position), 'Illegal move for type of piece'
             );
             // Get piece data from to next_position in the board
-            let mut piece_next_position = get!(world, (game_id, next_position), (Piece));
+            let mut next_position_piece = get!(world, (game_id, next_position), (Piece));
 
             let player = get!(world, (game_id, caller), (Player));
             // check if there is already a piece in next_position
             assert(
-                piece_next_position.piece_type == PieceType::None
-                    || player.is_not_my_piece(piece_next_position.color),
+                next_position_piece.piece_type == PieceType::None
+                    || player.is_not_my_piece(next_position_piece.color),
                 'Already same color piece exist'
             );
 
-            piece_next_position.piece_type = current_piece.piece_type;
-            piece_next_position.color = player.color;
+            next_position_piece.piece_type = current_piece.piece_type;
+            next_position_piece.color = player.color;
             // make current_piece piece none 
             current_piece.piece_type = PieceType::None;
             current_piece.color = Color::None;
-            set!(world, (piece_next_position));
+            set!(world, (next_position_piece));
             set!(world, (current_piece));
 
             // change turn
