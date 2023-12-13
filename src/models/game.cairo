@@ -23,9 +23,9 @@ trait GameTurnTrait {
 impl GameTurnImpl of GameTurnTrait {
     fn next_turn(self: @GameTurn) -> Color {
         match self.player_color {
-            Color::White(()) => Color::Black(()),
-            Color::Black(()) => Color::White(()),
-            Color::None(()) => panic(array!['Illegal turn']),
+            Color::White => Color::Black,
+            Color::Black => Color::White,
+            Color::None => panic(array!['Illegal turn']),
         }
     }
 }

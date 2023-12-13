@@ -4,9 +4,10 @@ use starknet::ContractAddress;
 #[derive(Model, Drop, Serde)]
 struct Piece {
     #[key]
-    color: Color,
+    game_id: u32,
     #[key]
     position: Vec2,
+    color: Color,
     piece_type: PieceType,
 }
 
@@ -18,32 +19,23 @@ struct Vec2 {
 
 #[derive(Serde, Drop, Copy, PartialEq, Introspect)]
 enum PieceType {
-    Pawn: (),
-    Knight: (),
-    Bishop: (),
-    Rook: (),
-    Queen: (),
-    King: (),
-    None: (),
+    Pawn,
+    Knight,
+    Bishop,
+    Rook,
+    Queen,
+    King,
+    None,
 }
 
 trait PieceTrait {
-    fn is_mine(self: @Piece, player_color: @Color) -> bool;
     fn is_out_of_board(next_position: Vec2) -> bool;
     fn is_right_piece_move(self: @Piece, curr_position: Vec2, next_position: Vec2) -> bool;
 }
 
 impl PieceImpl of PieceTrait {
-    fn is_mine(self: @Piece, player_color: @Color) -> bool {
-        //self.color == player_color
-        false
-    }
-
     fn is_out_of_board(next_position: Vec2) -> bool {
-        if next_position.x > 7 || next_position.y > 7 {
-            return false;
-        }
-        true
+        next_position.x > 7 || next_position.y > 7
     }
 
     fn is_right_piece_move(self: @Piece, curr_position: Vec2, next_position: Vec2) -> bool {
@@ -63,7 +55,7 @@ impl PieceImpl of PieceTrait {
             PieceType::Rook => { true },
             PieceType::Queen => { true },
             PieceType::King => { true },
-            PieceType::None(_) => panic(array!['Should not move empty piece']),
+            PieceType::None => panic(array!['Should not move empty piece']),
         }
     }
 }

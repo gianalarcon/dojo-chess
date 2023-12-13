@@ -16,7 +16,7 @@ trait IActions<ContractState> {
 
 #[dojo::contract]
 mod actions {
-    use chess::models::player::{Player, Color};
+    use chess::models::player::{Player, Color, PlayerTrait};
     use chess::models::piece::{Piece, PieceType, PieceTrait};
     use chess::models::game::{Game, GameTurn, GameTurnTrait};
     use super::{ContractAddress, IActions, Vec2};
@@ -33,8 +33,8 @@ mod actions {
             set!(
                 world,
                 (
-                    Player { game_id, address: black_address, color: Color::Black(()) },
-                    Player { game_id, address: white_address, color: Color::White(()) },
+                    Player { game_id, address: black_address, color: Color::Black },
+                    Player { game_id, address: white_address, color: Color::White },
                 )
             );
 
@@ -43,9 +43,9 @@ mod actions {
                 world,
                 (
                     Game {
-                        game_id, winner: Color::None(()), white: white_address, black: black_address
+                        game_id, winner: Color::None, white: white_address, black: black_address
                     },
-                    GameTurn { game_id, player_color: Color::White(()) },
+                    GameTurn { game_id, player_color: Color::White },
                 )
             );
 
@@ -53,7 +53,8 @@ mod actions {
             set!(
                 world,
                 (Piece {
-                    color: Color::White(()),
+                    game_id,
+                    color: Color::White,
                     position: Vec2 { x: 0, y: 0 },
                     piece_type: PieceType::Rook
                 })
@@ -61,7 +62,8 @@ mod actions {
             set!(
                 world,
                 (Piece {
-                    color: Color::White(()),
+                    game_id,
+                    color: Color::White,
                     position: Vec2 { x: 0, y: 1 },
                     piece_type: PieceType::Pawn
                 })
@@ -69,7 +71,8 @@ mod actions {
             set!(
                 world,
                 (Piece {
-                    color: Color::Black(()),
+                    game_id,
+                    color: Color::Black,
                     position: Vec2 { x: 1, y: 6 },
                     piece_type: PieceType::Pawn
                 })
@@ -77,9 +80,19 @@ mod actions {
             set!(
                 world,
                 (Piece {
-                    color: Color::White(()),
+                    game_id,
+                    color: Color::White,
                     position: Vec2 { x: 1, y: 0 },
                     piece_type: PieceType::Knight
+                })
+            );
+            set!(
+                world,
+                (Piece {
+                    game_id,
+                    color: Color::None,
+                    position: Vec2 { x: 0, y: 2 },
+                    piece_type: PieceType::None
                 })
             );
 
@@ -95,30 +108,31 @@ mod actions {
             game_id: u32
         ) {
             let world = self.world_dispatcher.read();
-            let mut current_piece = get!(
-                world, (game_id, curr_position.x, curr_position.y), (Piece)
-            );
+            let mut current_piece = get!(world, (game_id, curr_position), (Piece));
             // check if next_position is out of board or not
-            assert(PieceTrait::is_out_of_board(next_position), 'Should be inside board');
+            assert(!PieceTrait::is_out_of_board(next_position), 'Should be inside board');
 
             // check if this is the right move for this piece type
             assert(
                 current_piece.is_right_piece_move(curr_position, next_position),
                 'Illegal move for type of piece'
             );
-            let target_piece = current_piece.piece_type;
-            // make current_piece piece none and move piece to next_position
-            current_piece.piece_type = PieceType::None(());
+            // Get piece data from to next_position in the board
             let mut piece_next_position = get!(world, (game_id, next_position), (Piece));
 
-            // check the piece already in next_position
             let player = get!(world, (game_id, caller), (Player));
+            // check if there is already a piece in next_position
             assert(
-                piece_next_position.piece_type == PieceType::None(())
-                    || !piece_next_position.is_mine(@player.color),
+                piece_next_position.piece_type == PieceType::None
+                    || player.is_not_my_piece(@piece_next_position.color),
                 'Already same color piece exist'
             );
-            piece_next_position.piece_type = target_piece;
+
+            piece_next_position.piece_type = current_piece.piece_type;
+            piece_next_position.color = player.color;
+            // make current_piece piece none 
+            current_piece.piece_type = PieceType::None;
+            current_piece.color = Color::None;
             set!(world, (piece_next_position));
             set!(world, (current_piece));
 
@@ -172,7 +186,7 @@ mod tests {
         //get game
         let game = get!(world, game_id, (Game));
         let game_turn = get!(world, game_id, (GameTurn));
-        assert(game_turn.player_color == Color::White(()), 'should be white turn');
+        assert(game_turn.player_color == Color::White, 'should be white turn');
         assert(game.white == white, 'white address is incorrect');
         assert(game.black == black, 'black address is incorrect');
 
@@ -180,7 +194,7 @@ mod tests {
         let curr_pos = Vec2 { x: 0, y: 0 };
         let a1 = get!(world, (game_id, curr_pos), (Piece));
         assert(a1.piece_type == PieceType::Rook, 'should be Rook');
-        assert(a1.color == Color::White(()), 'should be white color');
+        assert(a1.color == Color::White, 'should be white color');
         assert(a1.piece_type != PieceType::None, 'should have piece');
     }
     #[test]
@@ -194,20 +208,21 @@ mod tests {
         let curr_pos = Vec2 { x: 0, y: 1 };
         let a2 = get!(world, (game_id, curr_pos), (Piece));
         assert(a2.piece_type == PieceType::Pawn, 'should be White Pawn');
-        assert(a2.color == Color::White(()), 'should be white color piece');
+        assert(a2.color == Color::White, 'should be white color piece 1');
         assert(a2.piece_type != PieceType::None, 'should have piece');
 
         let next_pos = Vec2 { x: 0, y: 2 };
         let game_turn = get!(world, game_id, (GameTurn));
-        assert(game_turn.player_color == Color::White(()), 'should be white player turn');
+        assert(game_turn.player_color == Color::White, 'should be white player turn');
         actions_system.move(curr_pos, next_pos, white.into(), game_id);
 
-        let c3 = get!(world, (game_id, 0, 2), (Piece));
+        let curr_pos = next_pos;
+        let c3 = get!(world, (game_id, curr_pos), (Piece));
         assert(c3.piece_type == PieceType::Pawn, 'should be White Pawn');
-        assert(c3.color == Color::White(()), 'should be white color piece');
+        assert(c3.color == Color::White, 'should be white color piece 2');
         assert(c3.piece_type != PieceType::None, 'should have piece');
 
         let game_turn = get!(world, game_id, (GameTurn));
-        assert(game_turn.player_color == Color::Black(()), 'should be black player turn');
+        assert(game_turn.player_color == Color::Black, 'should be black player turn');
     }
 }
