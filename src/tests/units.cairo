@@ -61,7 +61,7 @@ mod tests {
         let game_id = actions_system.spawn(white, black);
         let curr_pos = Vec2 { x: 0, y: 1 };
         let a2 = get!(world, (game_id, curr_pos), (Piece));
-        assert(a2.piece_type == PieceType::Pawn, 'should be White Pawn');
+        assert(a2.piece_type == PieceType::Pawn, 'should be Pawn');
         assert(a2.color == Color::White, 'should be white color piece 1');
         assert(a2.piece_type != PieceType::None, 'should have piece');
 
@@ -72,7 +72,7 @@ mod tests {
 
         let curr_pos = next_pos;
         let c3 = get!(world, (game_id, curr_pos), (Piece));
-        assert(c3.piece_type == PieceType::Pawn, 'should be White Pawn');
+        assert(c3.piece_type == PieceType::Pawn, 'should be Pawn');
         assert(c3.color == Color::White, 'should be white color piece 2');
         assert(c3.piece_type != PieceType::None, 'should have piece');
 
